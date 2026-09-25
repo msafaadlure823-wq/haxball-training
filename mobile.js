@@ -1,60 +1,83 @@
-// HaxBall Mobile Visible Touch Auto-Follow Script
+// HaxBall Mobile Enhanced Auto-Follow & Ball Predictor
 (function() {
-    let autoFollowActive = false;
+    let isKicking = false;
+    let canvas = document.querySelector('canvas');
 
-    // إنشاء زر لمس طافي على الشاشة
-    const btn = document.createElement('button');
-    btn.innerText = 'تتبع تلقائي';
-    btn.style.position = 'fixed';
-    btn.style.bottom = '20px';
-    btn.style.right = '20px';
-    btn.style.zIndex = '9999';
-    btn.style.padding = '15px 25px';
-    btn.style.backgroundColor = 'rgba(0, 150, 255, 0.8)';
-    btn.style.color = '#fff';
-    btn.style.border = 'none';
-    btn.style.borderRadius = '50px';
-    btn.style.fontSize = '16px';
-    btn.style.fontWeight = 'bold';
-    btn.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+    // استجابة لمس فائقة السرعة بدون تأخير
+    window.addEventListener('touchstart', (e) => {
+        for (let i = 0; i < e.touches.length; i++) {
+            if (e.touches[i].clientX > window.innerWidth / 2) {
+                isKicking = true;
+            }
+        }
+    }, { passive: true, capture: true });
 
-    document.body.appendChild(btn);
+    window.addEventListener('touchend', (e) => {
+        let rightTouch = false;
+        for (let i = 0; i < e.touches.length; i++) {
+            if (e.touches[i].clientX > window.innerWidth / 2) {
+                rightTouch = true;
+            }
+        }
+        if (!rightTouch) isKicking = false;
+    }, { passive: true, capture: true });
 
-    // تفعيل التتبع عند الضغط/اللمس المستمر على الزر
-    btn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        autoFollowActive = true;
-        btn.style.backgroundColor = 'rgba(0, 230, 118, 0.9)';
-    });
+    // رسم مسار ومكان اتجاه الكرة المستقبلي على الشاشة
+    function drawBallPrediction(ctx, ball) {
+        if (!ball || !ball.x || !ball.y) return;
 
-    btn.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        autoFollowActive = false;
-        btn.style.backgroundColor = 'rgba(0, 150, 255, 0.8)';
-    });
+        // توقع مكان الكرة المستقبلي بناءً على سرعتها (Ball Velocity)
+        const futureX = ball.x + (ball.vx || 0) * 10;
+        const futureY = ball.y + (ball.vy || 0) * 10;
 
-    // تحديث حركة اللاعب باتجاه الكرة
-    function update() {
-        if (autoFollowActive && window.room && window.room.getPlayerList) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([5, 5]);
+        ctx.moveTo(ball.x, ball.y);
+        ctx.lineTo(futureX, futureY);
+        ctx.strokeStyle = 'rgba(255, 235, 59, 0.8)'; // خط أصفر منقط
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // دائرة استهداف مكان وصول الكرة
+        ctx.beginPath();
+        ctx.arc(futureX, futureY, 8, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(255, 87, 34, 0.7)'; // نقطة برتقالية
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // حلقة التحكم والتوجيه الفوري
+    function gameLoop() {
+        if (window.room && window.room.getPlayerList) {
             const players = room.getPlayerList();
             const me = players.find(p => p.id === room.getMe()?.id);
             const ball = room.getBallPosition();
 
-            if (me && me.position && ball) {
-                const dx = ball.x - me.position.x;
-                const dy = ball.y - me.position.y;
+            // عند الضغط المستمر على زر الشوت
+            if (isKicking && me && me.position && ball) {
+                // توقع موقع الكرة الفعلي مع السرعة لزيادة دقة الملاحقة
+                const targetX = ball.x + (ball.vx || 0) * 2;
+                const targetY = ball.y + (ball.vy || 0) * 2;
+
+                const dx = targetX - me.position.x;
+                const dy = targetY - me.position.y;
                 
                 let inputs = 0;
-                if (dx > 5) inputs |= 2;  // Right
-                if (dx < -5) inputs |= 1; // Left
-                if (dy > 5) inputs |= 8;  // Down
-                if (dy < -5) inputs |= 4; // Up
+                // توجيه دقيق وسريع
+                if (dx > 2) inputs |= 2;   // Right
+                if (dx < -2) inputs |= 1;  // Left
+                if (dy > 2) inputs |= 8;   // Down
+                if (dy < -2) inputs |= 4;  // Up
+                
+                inputs |= 16; // Kick (تفعيل الشوت مع الملاحقة)
 
                 room.setPlayerInputKeys(inputs);
             }
         }
-        requestAnimationFrame(update);
+        requestAnimationFrame(gameLoop);
     }
 
-    update();
+    gameLoop();
 })();
+ 
