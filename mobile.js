@@ -1,18 +1,39 @@
-// HaxBall Mobile Touch Auto-Follow Script
+// HaxBall Mobile Visible Touch Auto-Follow Script
 (function() {
     let autoFollowActive = false;
 
-    // تفعيل التتبع عند لمس الشاشة
-    window.addEventListener('touchstart', (e) => {
-        if (e.touches[0].clientX > window.innerWidth / 2) {
-            autoFollowActive = true;
-        }
+    // إنشاء زر لمس طافي على الشاشة
+    const btn = document.createElement('button');
+    btn.innerText = 'تتبع تلقائي';
+    btn.style.position = 'fixed';
+    btn.style.bottom = '20px';
+    btn.style.right = '20px';
+    btn.style.zIndex = '9999';
+    btn.style.padding = '15px 25px';
+    btn.style.backgroundColor = 'rgba(0, 150, 255, 0.8)';
+    btn.style.color = '#fff';
+    btn.style.border = 'none';
+    btn.style.borderRadius = '50px';
+    btn.style.fontSize = '16px';
+    btn.style.fontWeight = 'bold';
+    btn.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+
+    document.body.appendChild(btn);
+
+    // تفعيل التتبع عند الضغط/اللمس المستمر على الزر
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        autoFollowActive = true;
+        btn.style.backgroundColor = 'rgba(0, 230, 118, 0.9)';
     });
 
-    window.addEventListener('touchend', () => {
+    btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
         autoFollowActive = false;
+        btn.style.backgroundColor = 'rgba(0, 150, 255, 0.8)';
     });
 
+    // تحديث حركة اللاعب باتجاه الكرة
     function update() {
         if (autoFollowActive && window.room && window.room.getPlayerList) {
             const players = room.getPlayerList();
